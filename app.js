@@ -42,10 +42,13 @@ function loadTrack(file){
       trackPoints=ext==='gpx'?parseGPX(xml):ext==='kml'?parseKML(xml):[];
       if(trackPoints.length<2)throw Error('Aucun tracé linéaire exploitable trouvé. Choisissez un GPX ou un KML contenant une trace/route.');
       trackName=file.name;
-      if(trackLayer)map.removeLayer(trackLayer);
-      trackLayer=L.polyline(trackPoints,{color:'#d34b32',weight:5,opacity:.9}).addTo(map);
+      if(trackLayer) map.removeLayer(trackLayer);
+      // Regrouper la ligne et les marqueurs dans un vrai LayerGroup.
+      trackLayer = L.layerGroup();
+      L.polyline(trackPoints,{color:'#d34b32',weight:5,opacity:.9}).addTo(trackLayer);
       L.circleMarker(trackPoints[0],{radius:6,color:'#176b45',fillOpacity:1}).addTo(trackLayer);
       L.circleMarker(trackPoints[trackPoints.length-1],{radius:6,color:'#532b80',fillOpacity:1}).addTo(trackLayer);
+      trackLayer.addTo(map);
       currentBounds=trackLayer.getBounds();map.fitBounds(currentBounds.pad(.08),{maxZoom:16});
       const km=distance(trackPoints)/1000;
       $('fileInfo').textContent='Fichier chargé : '+file.name;

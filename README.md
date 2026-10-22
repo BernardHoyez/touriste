@@ -11,6 +11,6 @@ Application statique pour GitHub Pages : importe une trace GPX/KML, l'affiche av
 ## Remarques
 - L'application lit les fichiers localement dans le navigateur ; elle ne les téléverse pas.
 - Le fond cartographique et les bibliothèques Leaflet sont chargés depuis des services externes, donc une connexion Internet est nécessaire pour la carte.
-- Le service worker `brise-caches.js` met en cache les fichiers de l'application, mais pas les tuiles cartographiques. Après une mise à jour, le nom de cache est versionné (`touriste-static-v1`) ; l'incrémenter dans `brise-caches.js` pour forcer une nouvelle version.
+- Le service worker `brise-caches.js` met en cache les fichiers de l'application, mais pas les tuiles cartographiques. Après une mise à jour, le nom de cache est versionné (`touriste-static-v2`) ; l'incrémenter dans `brise-caches.js` pour forcer une nouvelle version.
 - La distance est calculée à partir des coordonnées horizontales. Les données d'altitude/dénivelé sont ignorées.
 - L'IGN peut modifier les services cartographiques ; si un fond ne s'affiche plus, vérifier l'URL et les conditions d'utilisation de Géoplateforme.
