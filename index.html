@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Touriste - Analyseur de Randonnée & Prompt IA</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m8 3 4 8 5-5 5 15H2L8 3z'/></svg>">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Turf.js for Spatial Analysis -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+    
+    <!-- Chart.js for Elevation Profile -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        #map { height: 450px; width: 100%; border-radius: 0.75rem; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Header / Navbar -->
+    <header class="bg-blue-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i data-lucide="mountain" class="w-8 h-8"></i>
+                <h1 class="text-2xl font-bold tracking-tight">Touriste</h1>
+                <span class="bg-blue-500 text-xs px-2 py-1 rounded-full font-medium">PWA</span>
+            </div>
+            <div class="text-xs sm:text-sm bg-blue-700 px-3 py-1.5 rounded-lg flex items-center space-x-2">
+                <i data-lucide="compass" class="w-4 h-4"></i>
+                <span>Générateur d'emprise & Prompt IA</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Controls & Upload Column (Left - 4 cols) -->
+        <section class="lg:col-span-4 space-y-6">
+            
+            <!-- Import Card -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="upload" class="w-5 h-5 text-blue-600"></i>
+                    1. Fichier de trace
+                </h2>
+                <label for="fileInput" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50 hover:bg-blue-50/50">
+                    <i data-lucide="file-up" class="w-10 h-10 text-slate-400 mb-2"></i>
+                    <span class="text-sm font-medium text-slate-700 text-center">Déposer un fichier GPX ou KML</span>
+                    <span class="text-xs text-slate-500 mt-1">Format supporté : .gpx, .kml</span>
+                    <input type="file" id="fileInput" accept=".gpx,.kml" class="hidden">
+                </label>
+                <div id="fileInfo" class="mt-3 text-xs text-slate-600 hidden bg-slate-100 p-2.5 rounded-lg flex justify-between items-center">
+                    <span id="fileName" class="font-medium truncate max-w-[200px]"></span>
+                    <span id="fileType" class="uppercase text-[10px] bg-slate-200 px-2 py-0.5 rounded font-bold"></span>
+                </div>
+            </div>
+
+            <!-- Buffer Controls Card -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="expand" class="w-5 h-5 text-blue-600"></i>
+                    2. Tampon de recherche (X)
+                </h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <label for="bufferRange" class="text-sm text-slate-600 font-medium">Largeur de zone :</label>
+                        <span id="bufferValue" class="text-sm font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-md">200 m</span>
+                    </div>
+                    <input type="range" id="bufferRange" min="0" max="1000" step="25" value="200" 
+                        class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    <div class="flex justify-between text-xs text-slate-400 font-mono">
+                        <span>0m</span>
+                        <span>500m</span>
+                        <span>1000m</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Card -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5 text-blue-600"></i>
+                    Statistiques de la trace
+                </h2>
+                <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <div class="text-xs text-slate-500 uppercase font-medium">Distance</div>
+                        <div id="statDistance" class="text-lg font-bold text-slate-800">-- km</div>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <div class="text-xs text-slate-500 uppercase font-medium">Surface emprise</div>
+                        <div id="statArea" class="text-lg font-bold text-slate-800">-- km²</div>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <div class="text-xs text-slate-500 uppercase font-medium">Dénivelé +</div>
+                        <div id="statEleGain" class="text-lg font-bold text-slate-800">-- m</div>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <div class="text-xs text-slate-500 uppercase font-medium">Dénivelé -</div>
+                        <div id="statEleLoss" class="text-lg font-bold text-slate-800">-- m</div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Visualization & Prompt Column (Right - 8 cols) -->
+        <section class="lg:col-span-8 space-y-6">
+
+            <!-- Map & Chart Section -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-semibold flex items-center gap-2">
+                        <i data-lucide="map" class="w-5 h-5 text-blue-600"></i>
+                        Carte & Polygon de Zone
+                    </h2>
+                    <span id="coordBounds" class="text-xs font-mono text-slate-500 hidden sm:inline">Bounding Box: [--]</span>
+                </div>
+
+                <!-- Leaflet Container -->
+                <div id="map"></div>
+
+                <!-- Elevation Chart Container -->
+                <div id="chartContainer" class="mt-4 pt-4 border-t border-slate-100 hidden">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-2">Profil altimétrique</h3>
+                    <div class="h-32 w-full">
+                        <canvas id="elevationChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt Output Card -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-semibold flex items-center gap-2">
+                        <i data-lucide="sparkles" class="w-5 h-5 text-blue-600"></i>
+                        Prompt IA généré (~200 mots)
+                    </h2>
+                    <div class="flex items-center space-x-2">
+                        <span id="wordCount" class="text-xs font-medium bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">0 mots</span>
+                        <button id="copyBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg flex items-center space-x-1.5 transition-colors disabled:opacity-50" disabled>
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            <span id="copyBtnText">Copier</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Generated Prompt Output Textarea -->
+                <div class="relative">
+                    <textarea id="promptOutput" readonly rows="8" 
+                        class="w-full p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none custom-scrollbar"
+                        placeholder="Veuillez importer une trace GPX ou KML pour générer le prompt..."></textarea>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <span>&copy; Touriste PWA - Analyse spatiale et génération de prompts touristiques</span>
+            <span>Fonctionne 100% en local dans votre navigateur</span>
+        </div>
+    </footer>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW enregistré:', reg.scope))
+                    .catch(err => console.error('Erreur enregistrement SW:', err));
+            });
+        }
+    </script>
+</body>
+</html>
