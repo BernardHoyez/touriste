@@ -1,4 +1,4 @@
-const CACHE_NAME = 'touriste-pwa-v1';
+const CACHE_NAME = 'touriste-pwa-v2';
 const ASSETS = [
     './',
     './index.html',
@@ -8,7 +8,6 @@ const ASSETS = [
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
     'https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js',
-    'https://cdn.jsdelivr.net/npm/chart.js',
     'https://unpkg.com/lucide@latest'
 ];
 
