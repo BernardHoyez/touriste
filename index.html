@@ -1,76 +1,86 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#245a46">
-<meta name="description" content="Prépare un prompt documenté pour inventorier les curiosités proches d'une randonnée.">
-<link rel="manifest" href="manifest.json">
-<title>Touriste — curiosités de randonnée</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Touriste — curiosités le long d’une randonnée</title>
+  <meta name="description" content="Inventorier les curiosités à proximité d’une randonnée : charger une trace GPX/KML et rédiger un prompt prêt à soumettre à une IA.">
+  <meta name="theme-color" content="#1f4d3a">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <div class="brand">🧭 <span>touriste</span></div>
-  <p>Inventorier les curiosités à proximité d'une randonnée</p>
-</header>
-<main>
-  <section class="panel">
-    <h1>1. Importer une trace</h1>
-    <p>Choisissez un fichier GPX ou KML. Le dénivelé et les altitudes sont volontairement ignorés.</p>
-    <label class="file-label" for="trackFile">Choisir un fichier .gpx ou .kml</label>
-    <input id="trackFile" type="file" accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml">
-    <div id="fileInfo" class="status" aria-live="polite">Aucun fichier chargé.</div>
-    <div class="map-controls">
-      <label for="baseLayer">Fond de carte</label>
-      <select id="baseLayer">
-        <option value="osm">OpenStreetMap</option>
-        <option value="ign">IGN Plan V2</option>
-        <option value="ortho">IGN BD Ortho</option>
-      </select>
-    </div>
-    <div id="map" aria-label="Carte de la randonnée"></div>
-    <div class="stats" id="stats">Distance : — · Points de trace : —</div>
-  </section>
-  <section class="panel">
-    <h2>2. Paramétrer l'inventaire</h2>
-    <p>Le prompt demande à l'IA de vérifier les sources, de distinguer les faits établis des hypothèses et de ne rien inventer.</p>
-    <div class="grid">
-      <div>
-        <label for="radius">Proximité du sentier</label>
-        <select id="radius">
-          <option value="100">100 m — immédiate</option>
-          <option value="250" selected>250 m — recommandée</option>
-          <option value="500">500 m</option>
-          <option value="1000">1 km</option>
-        </select>
+  <header class="top">
+    <h1>Touriste</h1>
+    <p>Les curiosités qui bordent votre randonnée, prêtes à être interrogées auprès d’une IA.</p>
+  </header>
+
+  <main class="layout">
+    <section class="map-col" aria-label="Carte">
+      <div id="map"></div>
+      <p class="hint" id="mapHint">Chargez une trace pour l’afficher sur la carte. Vous pouvez aussi la déposer sur la carte.</p>
+    </section>
+
+    <section class="panel">
+      <div class="card">
+        <h2><span class="num">1</span> Trace</h2>
+        <label class="btn btn-primary" for="file">Choisir un fichier GPX ou KML</label>
+        <input id="file" type="file" accept=".gpx,.kml,.xml,text/xml,application/xml,application/gpx+xml,application/vnd.google-earth.kml+xml,application/octet-stream" hidden>
+        <p id="trackInfo" class="info" aria-live="polite">Aucune trace chargée.</p>
+        <p id="error" class="error" role="alert" hidden></p>
       </div>
-      <div>
-        <label for="audience">Public visé</label>
-        <select id="audience">
-          <option value="curieux et randonneurs">Randonneurs curieux</option>
-          <option value="public familial, vocabulaire accessible">Public familial</option>
-          <option value="amateurs éclairés, niveau documenté">Amateurs éclairés</option>
-          <option value="public expert, détails techniques bienvenus">Public expert</option>
-        </select>
+
+      <div class="card">
+        <h2><span class="num">2</span> Paramètres</h2>
+
+        <fieldset>
+          <legend>Proximité du sentier</legend>
+          <div class="seg" id="radiusGroup">
+            <label><input type="radio" name="radius" value="250"><span>250 m</span></label>
+            <label><input type="radio" name="radius" value="500" checked><span>500 m</span></label>
+            <label><input type="radio" name="radius" value="1000"><span>1000 m</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Public visé</legend>
+          <div class="seg seg-2" id="audienceGroup">
+            <label><input type="radio" name="audience" value="eclaires"><span>Amateurs éclairés</span></label>
+            <label><input type="radio" name="audience" value="curieux" checked><span>Randonneurs curieux</span></label>
+            <label><input type="radio" name="audience" value="famille"><span>Public familial</span></label>
+            <label><input type="radio" name="audience" value="expert"><span>Public expert</span></label>
+          </div>
+        </fieldset>
+
+        <label class="field" for="extra">Précisions facultatives
+          <input id="extra" type="text" maxlength="200" placeholder="ex. communes traversées, massif, thème qui vous intéresse">
+        </label>
       </div>
-    </div>
-    <label for="notes">Précisions facultatives (commune, région, centres d'intérêt…)</label>
-    <textarea id="notes" rows="3" placeholder="Ex. : secteur du Pays de Caux ; priorité aux patrimoines ruraux et à la géologie."></textarea>
-    <div class="actions">
-      <button id="generate" class="primary">Rédiger le prompt</button>
-      <button id="copy" disabled>Copier le prompt</button>
-      <button id="download" disabled>Télécharger .txt</button>
-    </div>
-    <div id="copyStatus" class="status" aria-live="polite"></div>
-    <label for="prompt">Prompt généré (modifiable avant copie)</label>
-    <textarea id="prompt" rows="22" placeholder="Le prompt apparaîtra ici après le chargement d'une trace et un clic sur « Rédiger le prompt »."></textarea>
-    <p class="hint">Le prompt est un cahier des charges pour une IA : il ne réalise pas lui-même les recherches et ne garantit pas l'exhaustivité. Demandez à l'IA de fournir des liens consultables et de signaler les informations qu'elle n'a pas pu vérifier.</p>
-  </section>
-</main>
-<footer>Touriste · application locale · les fichiers de trace ne sont pas envoyés par cette application.</footer>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="app.js"></script>
+
+      <div class="card">
+        <h2><span class="num">3</span> Prompt</h2>
+        <button id="btnGen" class="btn btn-primary" type="button" disabled>Rédiger le prompt</button>
+        <p id="stale" class="info warn" hidden>Paramètres modifiés : cliquez sur « Rédiger le prompt » pour mettre à jour le texte.</p>
+        <label class="sr-only" for="prompt">Prompt généré</label>
+        <textarea id="prompt" rows="16" spellcheck="false" placeholder="Le prompt rédigé apparaîtra ici. Vous pourrez le modifier avant de le copier."></textarea>
+        <div class="row">
+          <span id="wc" class="info">0 mot</span>
+          <span class="spacer"></span>
+          <button id="btnCopy" class="btn" type="button" disabled>Copier</button>
+          <button id="btnDl" class="btn" type="button" disabled>Télécharger (.txt)</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">Touriste · <span id="version">hors ligne</span></footer>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="core.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
